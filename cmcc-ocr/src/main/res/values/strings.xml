@@ -6,7 +6,7 @@
     <!--<string name="title_activity_video_identify">监狱智能人像点名系统</string>-->
     <string name="title_activity_video_identify">公安智能人像识别系统</string>
     <string name="no_camera">没有摄像头</string>
-    <string name="video_identify_start">启动</string>
+    <string name="video_identify_start">检测</string>
     <string name="result_txt">已就绪...</string>
 
 </resources>

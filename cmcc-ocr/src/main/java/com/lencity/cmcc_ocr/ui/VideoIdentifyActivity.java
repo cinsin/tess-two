@@ -1,20 +1,15 @@
 package com.lencity.cmcc_ocr.ui;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.PictureCallback;
 import android.os.Bundle;
 import android.os.Environment;
-import android.speech.tts.TextToSpeech;
-import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
@@ -36,11 +31,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -48,7 +40,7 @@ import java.util.Locale;
  *
  * @see
  */
-public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnInitListener{
+public class VideoIdentifyActivity extends Activity{
 
     private Camera mCamera;
     private CameraPreview mPreview;
@@ -67,7 +59,7 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
     ImageView identifySrcImageView;
     ImageView identifyResultImageView;
     Bitmap bitmapSrc;
-    Bitmap bitmapRes;
+    Bitmap bitmapDst;
 
     boolean isSwitchOn = false;
 
@@ -135,7 +127,7 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
 
         // 无标题栏的窗口
         //requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        //getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         // 设置布局
         setContentView(R.layout.activity_video_identify);
@@ -245,18 +237,15 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
             bitmapSrc.compress(Bitmap.CompressFormat.JPEG, 100, stream);
             data = stream.toByteArray();
 
-            // Set picture to ImageView
-            ImageHandler imageViewHandler = new ImageHandler();
-            imageViewHandler.setPicFromByteArr(identifyResultImageView, data);
-
             // Save taken picture to phone/sd card storage
-            /*File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
-            if (pictureFile == null) {
+            File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
+            /*if (pictureFile == null) {
                 Log.d(Constant.LOG_TAG, "Error creating media file, check storage permissions: ");
                 return;
             }
             try {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
+                Log.d(Constant.LOG_TAG, "File saved: /storage/sdcard0/Pictures/cmcc-ocr/IMG_20160301_215635.jpg");
                 fos.write(data);
                 fos.close();
             } catch (FileNotFoundException e) {
@@ -265,10 +254,46 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
                 Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
             }*/
 
+            /*
+                屏幕大小与拍出来的照片大小不同，测试机屏幕H/W=1280/720，拍出来的照片大小H'/W'=640/480
+                需先算出屏幕比例，按照比例计算图片中的扫描框大小
+                比例计算方法: Xb=W/W', Yb=H/H'
+                假设：
+                屏幕大小中扫描框坐上角(X1,Y1)，右下角(X2，Y2)
+                图片中标扫描框左上角(X1',Y1')，右下角(X2',Y2')
+                则有：X1'=X1/Xb，Y1'=Y1/Yb，X2'=X2/Xb，Y2'=Y2/Yb
+            */
+            Constant.BITMAP_WIDTH = bitmapSrc.getWidth();
+            Constant.BITMAP_HEIGHT = bitmapSrc.getHeight();
+            Constant.SCAN_AREA_Xb = Constant.CANVAS_WIDTH / Constant.BITMAP_WIDTH;
+            Constant.SCAN_AREA_Yb = Constant.CANVAS_HEIGHT / Constant.BITMAP_HEIGHT;
+            Constant.BITMAP_SCAN_AREA_X = (int)(Constant.CANVAS_SCAN_AREA_X / Constant.SCAN_AREA_Xb);
+            Constant.BITMAP_SCAN_AREA_Y = (int)(Constant.CANVAS_SCAN_AREA_Y / Constant.SCAN_AREA_Yb);
+            Constant.BITMAP_SCAN_AREA_WIDTH = (int)(Constant.CANVAS_SCAN_AREA_WIDTH / Constant.SCAN_AREA_Xb);
+            Constant.BITMAP_SCAN_AREA_HEIGHT = (int)(Constant.CANVAS_SCAN_AREA_HEIGHT / Constant.SCAN_AREA_Yb);
+
+            // Crop bitmap image
+            bitmapDst = Bitmap.createBitmap(bitmapSrc,
+                    Constant.BITMAP_SCAN_AREA_X, Constant.BITMAP_SCAN_AREA_Y,
+                    Constant.BITMAP_SCAN_AREA_WIDTH, Constant.BITMAP_SCAN_AREA_HEIGHT);
+            /*bitmapDst = Bitmap.createBitmap(bitmapSrc,
+                    Constant.CANVAS_SCAN_AREA_X/2, Constant.CANVAS_SCAN_AREA_Y/2,
+                    Constant.CANVAS_SCAN_AREA_WIDTH/2, Constant.CANVAS_SCAN_AREA_HEIGHT/2);*/
+
+            /* Associate the Bitmap to the ImageView */
+            identifyResultImageView.setImageBitmap(bitmapDst);
+            identifyResultImageView.setVisibility(View.VISIBLE);
+
+            // ImageHandler imageViewHandler = new ImageHandler();
+            // Set picture to ImageView
+            /*imageViewHandler.setPicFromByteArr(identifyResultImageView, data);*/
+            // Recycle src bitmap
+            //imageViewHandler.recycleBitmap(bitmapSrc);
+
             TessBaseAPI baseApi = new TessBaseAPI();
             baseApi.setDebug(true);
             baseApi.init(DATA_PATH, lang);
-            baseApi.setImage(bitmapSrc);
+            baseApi.setImage(bitmapDst);
             String recognizedText = baseApi.getUTF8Text();
             Log.i("#RESULT#", recognizedText);
             baseApi.end();
@@ -277,11 +302,6 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
         }
     };
 
-
-    @Override
-    public void onInit(int status) {
-    }
-
     @Override
     protected void onResume() {
         Log.d(Constant.LOG_TAG, "onResume");
@@ -289,6 +309,13 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
 
         // Open the default i.e. the first rear facing camera.
         mCamera = getCameraInstance(mCameraCurrentlyLocked);
+        //set camera to continually auto-focus
+        Camera.Parameters params = mCamera.getParameters();
+        params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
+        //*EDIT*//params.setFocusMode("continuous-picture");
+        //It is better to use defined constraints as opposed to String, thanks to AbdelHady
+        params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE); // camera auto focus
+        mCamera.setParameters(params);
 
         mPreview.setCamera(mCamera);
     }
@@ -321,7 +348,6 @@ public class VideoIdentifyActivity extends Activity implements TextToSpeech.OnIn
         Log.d(Constant.LOG_TAG, "onWindowFocusChanged, checking camera status...");
         if (isSwitchOn) {
             Log.d(Constant.LOG_TAG, "Camera is on, will be released immediately...");
-            startCaptureButton.performClick(); // perform click
         }
     }
 

@@ -74,7 +74,7 @@ public class ImageHandler {
 	}
 
 	/* Recycle Bitmap for ImageView */
-	public void recyleBitmap(ImageView mImageView, Bitmap bitmap) {
+	public void recycleBitmap(ImageView mImageView, Bitmap bitmap) {
 		mImageView.setImageBitmap(null);
 		if (bitmap != null && !bitmap.isRecycled()) {
 			bitmap.recycle();
@@ -83,7 +83,7 @@ public class ImageHandler {
 	}
 
 	/* Recycle Bitmap */
-	public void recyleBitmap(Bitmap bitmap) {
+	public void recycleBitmap(Bitmap bitmap) {
 		if (bitmap != null && !bitmap.isRecycled()) {
 			bitmap.recycle();
 			bitmap = null;
@@ -122,7 +122,7 @@ public class ImageHandler {
 		Bitmap bitmap = bytes2Bimap(imageByteArr, bmOptions);
 		imageByteArr = bitmap2Bytes(bitmap);
 
-		recyleBitmap(bitmap);
+		recycleBitmap(bitmap);
 
 		return imageByteArr;
 	}

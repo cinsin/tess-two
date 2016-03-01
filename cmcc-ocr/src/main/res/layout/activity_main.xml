@@ -16,7 +16,7 @@
             android:layout_width="fill_parent"
             android:layout_height="fill_parent" />
 
-        <com.lencity.cmcc_ocr.utils.PicView
+        <com.lencity.cmcc_ocr.bo.PicView
             android:id="@+id/capture_viewfinder_view"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
