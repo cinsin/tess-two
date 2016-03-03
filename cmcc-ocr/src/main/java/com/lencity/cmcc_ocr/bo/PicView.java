@@ -47,20 +47,15 @@ public class PicView extends View {
 
     // 横线从上到下扫描
     private void drawLine(Canvas canvas) {
-        int iLineBegin = (int)(Constant.CANVAS_HEIGHT / 10 * 1); // 矩形顶部
-        //int iLineBegin = 20;
-        int iLineEnd = (int)(Constant.CANVAS_HEIGHT / 10 * 3); // 矩形底部
-        int lineWidth = (int)(Constant.CANVAS_WIDTH / 8 * 7); // 矩形宽
-        int gapToBroder = (int)(Constant.CANVAS_WIDTH / 8 / 2); // 矩形左右离边框的举例
-        //int lineWidth = (int)Constant.CANVAS_WIDTH;
-        //int gapToBroder = 0;
+        int iLineBegin = (int)(Constant.CANVAS_HEIGHT / 100 * 20); // 矩形顶部
+        int iLineEnd = (int)(Constant.CANVAS_HEIGHT / 100 * 26); // 矩形底部
+        int lineWidth = (int)(Constant.CANVAS_WIDTH / 10 * 6); // 矩形宽
+        int gapToBroder = (int)(Constant.CANVAS_WIDTH / 10 * 2); // 矩形左右离边框的距离
 
         if (linePos < iLineBegin || linePos > iLineEnd) {
             linePos = iLineBegin;
         }
         linePos += 1; // 扫描速度
-
-
 
         paint.setColor(Color.GREEN);
         int startX = gapToBroder;
@@ -81,7 +76,7 @@ public class PicView extends View {
 
         Constant.CANVAS_SCAN_AREA_X = left;
         Constant.CANVAS_SCAN_AREA_Y = top;
-        Constant.CANVAS_SCAN_AREA_WIDTH = right - startX;
+        Constant.CANVAS_SCAN_AREA_WIDTH = stopX - startX;
         Constant.CANVAS_SCAN_AREA_HEIGHT = iLineEnd - iLineBegin;
 
         //绘制四周阴影区域

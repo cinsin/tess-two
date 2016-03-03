@@ -5,6 +5,11 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BitmapRegionDecoder;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.PictureCallback;
@@ -13,6 +18,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -33,6 +39,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -69,6 +76,7 @@ public class VideoIdentifyActivity extends Activity{
     public static final String DATA_PATH = Environment.getExternalStorageDirectory().toString() + "/cmcc-ocr/";
     private static final String TAG = "cmcc-ocr";
     public static final String lang = "eng";
+    //public static final String lang = "chi_sim";
 
 
     @Override
@@ -126,8 +134,8 @@ public class VideoIdentifyActivity extends Activity{
 
 
         // 无标题栏的窗口
-        //requestWindowFeature(Window.FEATURE_NO_TITLE);
-        //getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         // 设置布局
         setContentView(R.layout.activity_video_identify);
@@ -163,16 +171,18 @@ public class VideoIdentifyActivity extends Activity{
 
         // Capture switch button and listener
         startCaptureButton = (Button) findViewById(R.id.button_capture);
+        startCaptureButton.setBackgroundColor(Color.argb(100, 100, 100, 100));
         startCaptureButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
                 Log.d(Constant.LOG_TAG, "Start capture button clicked...");
 
                 // Change button label
                 isSwitchOn = !isSwitchOn;
 
-                startCaptureButton.setText("检测");
+                startCaptureButton.setEnabled(false);
+                startCaptureButton.setTextColor(Color.RED);
+                startCaptureButton.setText("处理中...");
 
                 /*if (isSwitchOn) {
                     startCaptureButton.setText("停止");
@@ -186,7 +196,7 @@ public class VideoIdentifyActivity extends Activity{
 
                 // Identification interval
                 mCamera.takePicture(null, null, mPicture);
-                Log.d(Constant.LOG_TAG, "Picture took...");
+                Log.d(Constant.LOG_TAG, "Picture taken...");
 
                 // Capture picture and send to api
                 /*new Thread(new Runnable() {
@@ -233,26 +243,72 @@ public class VideoIdentifyActivity extends Activity{
                 mCamera.startPreview();
             }
             bitmapSrc = ImageHandler.getRotateBitmap(bitmapSrc, 90.0f);
-            ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            bitmapSrc.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-            data = stream.toByteArray();
 
             // Save taken picture to phone/sd card storage
-            File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
-            /*if (pictureFile == null) {
-                Log.d(Constant.LOG_TAG, "Error creating media file, check storage permissions: ");
-                return;
-            }
+            File fileName = getOutputMediaFile(MEDIA_TYPE_IMAGE);
             try {
-                FileOutputStream fos = new FileOutputStream(pictureFile);
-                Log.d(Constant.LOG_TAG, "File saved: /storage/sdcard0/Pictures/cmcc-ocr/IMG_20160301_215635.jpg");
-                fos.write(data);
+                FileOutputStream fos = new FileOutputStream(fileName);
+                Log.d(Constant.LOG_TAG, "File saved to dir: /storage/sdcard0/Pictures/cmcc-ocr/" + fileName);
+                bitmapSrc.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                fos.flush();
+                fos.close();
+            } catch (FileNotFoundException e) {
+                Log.d(Constant.LOG_TAG, "File not found: " + e.getMessage());
+            } catch (IOException e) {
+                Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
+            }
+
+            /****************************************************************/
+            /*RectF previewRect = new RectF(0, 0, 480, 800),
+                    pictureRect = new RectF(0, 0, 1080, 1920),
+                    nativeResRect = new RectF(0, 0, 1952, 2592),
+                    resultRect = new RectF(0, 0, 480, 800);
+
+            final Matrix scaleMatrix = new Matrix();
+
+            // create a matrix which scales coordinates of preview size rectangle into the
+            // camera's native resolution.
+            scaleMatrix.setRectToRect(previewRect, nativeResRect, Matrix.ScaleToFit.CENTER);
+
+            // map the result rectangle to the new coordinates
+            scaleMatrix.mapRect(resultRect);
+
+            // create a matrix which scales coordinates of picture size rectangle into the
+            // camera's native resolution.
+            scaleMatrix.setRectToRect(pictureRect, nativeResRect, Matrix.ScaleToFit.CENTER);
+
+            // invert it, so that we get the matrix which downscales the rectangle from
+            // the native resolution to the actual picture size
+            scaleMatrix.invert(scaleMatrix);
+
+            // and map the result rectangle to the coordinates in the picture size rectangle
+            scaleMatrix.mapRect(resultRect);
+
+            *//*
+            After all these manipulations the resultRect will hold the coordinates of area
+            inside the picture taken by the camera which correspond to the exactly the same image
+            you've seen in the preview of your app. You can cut this area from the picture by the
+            BitmapRegionDecoder.decodeRegion(android.graphics.Rect, android.graphics.BitmapFactory.Options) method.
+             *//*
+            Rect intCrop = new Rect();
+            resultRect.roundOut(intCrop);
+            Bitmap.createBitmap(bitmapSrc, intCrop.left, intCrop.top, intCrop.width(),
+                    intCrop.height());
+
+            // Save taken picture to phone/sd card storage
+            fileName = getOutputMediaFile(MEDIA_TYPE_IMAGE);
+            try {
+                FileOutputStream fos = new FileOutputStream(fileName);
+                Log.d(Constant.LOG_TAG, "File saved to dir: /storage/sdcard0/Pictures/cmcc-ocr/" + fileName);
+                bitmapSrc.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                fos.flush();
                 fos.close();
             } catch (FileNotFoundException e) {
                 Log.d(Constant.LOG_TAG, "File not found: " + e.getMessage());
             } catch (IOException e) {
                 Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
             }*/
+            /****************************************************************/
 
             /*
                 屏幕大小与拍出来的照片大小不同，测试机屏幕H/W=1280/720，拍出来的照片大小H'/W'=640/480
@@ -267,6 +323,7 @@ public class VideoIdentifyActivity extends Activity{
             Constant.BITMAP_HEIGHT = bitmapSrc.getHeight();
             Constant.SCAN_AREA_Xb = Constant.CANVAS_WIDTH / Constant.BITMAP_WIDTH;
             Constant.SCAN_AREA_Yb = Constant.CANVAS_HEIGHT / Constant.BITMAP_HEIGHT;
+
             Constant.BITMAP_SCAN_AREA_X = (int)(Constant.CANVAS_SCAN_AREA_X / Constant.SCAN_AREA_Xb);
             Constant.BITMAP_SCAN_AREA_Y = (int)(Constant.CANVAS_SCAN_AREA_Y / Constant.SCAN_AREA_Yb);
             Constant.BITMAP_SCAN_AREA_WIDTH = (int)(Constant.CANVAS_SCAN_AREA_WIDTH / Constant.SCAN_AREA_Xb);
@@ -274,33 +331,70 @@ public class VideoIdentifyActivity extends Activity{
 
             // Crop bitmap image
             bitmapDst = Bitmap.createBitmap(bitmapSrc,
-                    Constant.BITMAP_SCAN_AREA_X, Constant.BITMAP_SCAN_AREA_Y,
-                    Constant.BITMAP_SCAN_AREA_WIDTH, Constant.BITMAP_SCAN_AREA_HEIGHT);
-            /*bitmapDst = Bitmap.createBitmap(bitmapSrc,
-                    Constant.CANVAS_SCAN_AREA_X/2, Constant.CANVAS_SCAN_AREA_Y/2,
-                    Constant.CANVAS_SCAN_AREA_WIDTH/2, Constant.CANVAS_SCAN_AREA_HEIGHT/2);*/
+                    (int)Constant.BITMAP_SCAN_AREA_X + 36, (int)Constant.BITMAP_SCAN_AREA_Y,
+                    (int)Constant.BITMAP_SCAN_AREA_WIDTH - 74, (int)Constant.BITMAP_SCAN_AREA_HEIGHT);
+
+            // Enlarge bitmap
+            Matrix matrix = new Matrix();
+            matrix.postScale(2.0f,2.0f); //长和宽放大缩小的比例
+            bitmapDst = Bitmap.createBitmap(bitmapDst,0,0,bitmapDst.getWidth(),bitmapDst.getHeight(),matrix,true);
+
+
+            // Save taken picture to phone/sd card storage
+            fileName = getOutputMediaFile(MEDIA_TYPE_IMAGE);
+            try {
+                FileOutputStream fos = new FileOutputStream(fileName);
+                Log.d(Constant.LOG_TAG, "File saved to dir: /storage/sdcard0/Pictures/cmcc-ocr/" + fileName);
+                bitmapDst.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                fos.flush();
+                fos.close();
+            } catch (FileNotFoundException e) {
+                Log.d(Constant.LOG_TAG, "File not found: " + e.getMessage());
+            } catch (IOException e) {
+                Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
+            }
 
             /* Associate the Bitmap to the ImageView */
             identifyResultImageView.setImageBitmap(bitmapDst);
             identifyResultImageView.setVisibility(View.VISIBLE);
 
-            // ImageHandler imageViewHandler = new ImageHandler();
-            // Set picture to ImageView
-            /*imageViewHandler.setPicFromByteArr(identifyResultImageView, data);*/
-            // Recycle src bitmap
-            //imageViewHandler.recycleBitmap(bitmapSrc);
-
+            // OCR via api
             TessBaseAPI baseApi = new TessBaseAPI();
             baseApi.setDebug(true);
             baseApi.init(DATA_PATH, lang);
             baseApi.setImage(bitmapDst);
+            //baseApi.setVariable("classify_bln_numeric_mode", "1"); //set numeric-only mode
             String recognizedText = baseApi.getUTF8Text();
             Log.i("#RESULT#", recognizedText);
             baseApi.end();
 
-            identifyResultTextView.setText(recognizedText);
+            String keyText = prettyPrint(recognizedText);
+            String displayText = "关键值：" + keyText + "\n原始值：" + recognizedText;
+
+            identifyResultTextView.setText(displayText);
+
+            startCaptureButton.setEnabled(true);
+            startCaptureButton.setTextColor(Color.GREEN);
+            startCaptureButton.setText("检测");
         }
     };
+
+    /**
+     * 如果识别的对象是标签，则取标签最后4位数字作为识别结果
+     * @param str
+     * @return
+     */
+    private String prettyPrint(String str) {
+
+        if(str.contains("****")) {
+            int index = str.indexOf("****") + 4;
+            str = str.substring(index);
+            if(str.length() >= 4) {
+                str = str.substring(0,4);
+            }
+        }
+        return str;
+    }
 
     @Override
     protected void onResume() {
@@ -312,10 +406,15 @@ public class VideoIdentifyActivity extends Activity{
         //set camera to continually auto-focus
         Camera.Parameters params = mCamera.getParameters();
         params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-        //*EDIT*//params.setFocusMode("continuous-picture");
-        //It is better to use defined constraints as opposed to String, thanks to AbdelHady
         params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE); // camera auto focus
+
+        /*Camera.Size bestPreviewSize = determineBestPreviewSize(params);
+        Camera.Size bestPictureSize = determineBestPictureSize(params);
+        params.setPreviewSize(bestPreviewSize.width, bestPreviewSize.height);
+        params.setPictureSize(bestPictureSize.width, bestPictureSize.height);*/
+
         mCamera.setParameters(params);
+        //mCamera.setPreviewDisplay(mSurfaceHolder);
 
         mPreview.setCamera(mCamera);
     }
@@ -437,6 +536,7 @@ public class VideoIdentifyActivity extends Activity{
 
         // Create a media file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        timeStamp = timeStamp + Math.random();
         File mediaFile;
         if (type == MEDIA_TYPE_IMAGE) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator + "IMG_" + timeStamp + ".jpg");
@@ -461,6 +561,36 @@ public class VideoIdentifyActivity extends Activity{
             // no camera on this device
             return false;
         }
+    }
+
+    public static Camera.Size determineBestPreviewSize(Camera.Parameters parameters) {
+        List<Camera.Size> sizes = parameters.getSupportedPreviewSizes();
+        return determineBestSize(sizes);
+    }
+
+    public static Camera.Size determineBestPictureSize(Camera.Parameters parameters) {
+        List<Camera.Size> sizes = parameters.getSupportedPictureSizes();
+        return determineBestSize(sizes);
+    }
+
+    protected static Camera.Size determineBestSize(List<Camera.Size> sizes) {
+        Camera.Size bestSize = null;
+        long used = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+        long availableMemory = Runtime.getRuntime().maxMemory() - used;
+        for (Camera.Size currentSize : sizes) {
+            int newArea = currentSize.width * currentSize.height;
+            long neededMemory = newArea * 4 * 4; // newArea * 4 Bytes/pixel * 4 needed copies of the bitmap (for safety :) )
+            boolean isDesiredRatio = (currentSize.width / 4) == (currentSize.height / 3);
+            boolean isBetterSize = (bestSize == null || currentSize.width > bestSize.width);
+            boolean isSafe = neededMemory < availableMemory;
+            if (isDesiredRatio && isBetterSize && isSafe) {
+                bestSize = currentSize;
+            }
+        }
+        if (bestSize == null) {
+            return sizes.get(0);
+        }
+        return bestSize;
     }
 
 }
