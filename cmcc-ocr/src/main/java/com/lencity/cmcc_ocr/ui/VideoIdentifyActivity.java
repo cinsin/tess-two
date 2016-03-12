@@ -8,6 +8,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.BitmapRegionDecoder;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.Camera;
@@ -15,6 +16,7 @@ import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.PictureCallback;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
@@ -58,8 +60,6 @@ public class VideoIdentifyActivity extends Activity{
     // The first rear facing camera
     int mDefaultCameraId;
 
-    int mScreenWidth, mScreenHeight;
-
     public static final int MEDIA_TYPE_IMAGE = 1;
 
     TextView identifyResultTextView;
@@ -81,6 +81,7 @@ public class VideoIdentifyActivity extends Activity{
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        Constant.LOG_TAG = "VideoIdentifyActivity";
         Log.d(Constant.LOG_TAG, "onCreate");
         super.onCreate(savedInstanceState);
 
@@ -139,37 +140,21 @@ public class VideoIdentifyActivity extends Activity{
 
         // 设置布局
         setContentView(R.layout.activity_video_identify);
-
-        // 得到屏幕的大小
-        WindowManager wManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        Display display = wManager.getDefaultDisplay();
-        mScreenHeight = display.getHeight();
-        mScreenWidth = display.getWidth();
-
         // Create our Preview view and set it as the content of our activity.
         mPreview = new CameraPreview(this);
 
-        // Source video frame
+        // Video frame src
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-        // Set layoutParam by parent layout
-        /*GridLayout.LayoutParams layoutParams = new GridLayout.LayoutParams();
-        layoutParams.height = mScreenHeight / 100 * 100;
-        layoutParams.width = mScreenWidth / 100 * 100;
-        preview.setLayoutParams(layoutParams);*/
 
         // 将相机预览图加入帧布局里面
         preview.addView(mPreview, 0);
 
-        //identifySrcImageView = (ImageView)findViewById(R.id.identifySrcImageView);
         identifyResultTextView = (TextView) findViewById(R.id.identifyResultTxt);
 
         // Source picture taken
         identifyResultImageView = (ImageView) findViewById(R.id.identifyResultImageView);
-       /* layoutParams.height = mScreenHeight / 100 * 40;
-        layoutParams.width = mScreenWidth / 100 * 40;
-        identifyResultImageView.setLayoutParams(layoutParams);*/
 
-        // Capture switch button and listener
+        // Capture switch button and its listener
         startCaptureButton = (Button) findViewById(R.id.button_capture);
         startCaptureButton.setBackgroundColor(Color.argb(100, 100, 100, 100));
         startCaptureButton.setOnClickListener(new View.OnClickListener() {
@@ -231,7 +216,7 @@ public class VideoIdentifyActivity extends Activity{
     private PictureCallback mPicture = new PictureCallback() {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
-            Log.d(Constant.LOG_TAG, "onPictureTaken");
+            Log.d(Constant.LOG_TAG, "PictureCallback");
 
             // Captured picture is in landscape mode, need to transfer to portrait mode
             // byte[] -> BitMap -> landscape to portrait -> byte[]
@@ -257,58 +242,6 @@ public class VideoIdentifyActivity extends Activity{
             } catch (IOException e) {
                 Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
             }
-
-            /****************************************************************/
-            /*RectF previewRect = new RectF(0, 0, 480, 800),
-                    pictureRect = new RectF(0, 0, 1080, 1920),
-                    nativeResRect = new RectF(0, 0, 1952, 2592),
-                    resultRect = new RectF(0, 0, 480, 800);
-
-            final Matrix scaleMatrix = new Matrix();
-
-            // create a matrix which scales coordinates of preview size rectangle into the
-            // camera's native resolution.
-            scaleMatrix.setRectToRect(previewRect, nativeResRect, Matrix.ScaleToFit.CENTER);
-
-            // map the result rectangle to the new coordinates
-            scaleMatrix.mapRect(resultRect);
-
-            // create a matrix which scales coordinates of picture size rectangle into the
-            // camera's native resolution.
-            scaleMatrix.setRectToRect(pictureRect, nativeResRect, Matrix.ScaleToFit.CENTER);
-
-            // invert it, so that we get the matrix which downscales the rectangle from
-            // the native resolution to the actual picture size
-            scaleMatrix.invert(scaleMatrix);
-
-            // and map the result rectangle to the coordinates in the picture size rectangle
-            scaleMatrix.mapRect(resultRect);
-
-            *//*
-            After all these manipulations the resultRect will hold the coordinates of area
-            inside the picture taken by the camera which correspond to the exactly the same image
-            you've seen in the preview of your app. You can cut this area from the picture by the
-            BitmapRegionDecoder.decodeRegion(android.graphics.Rect, android.graphics.BitmapFactory.Options) method.
-             *//*
-            Rect intCrop = new Rect();
-            resultRect.roundOut(intCrop);
-            Bitmap.createBitmap(bitmapSrc, intCrop.left, intCrop.top, intCrop.width(),
-                    intCrop.height());
-
-            // Save taken picture to phone/sd card storage
-            fileName = getOutputMediaFile(MEDIA_TYPE_IMAGE);
-            try {
-                FileOutputStream fos = new FileOutputStream(fileName);
-                Log.d(Constant.LOG_TAG, "File saved to dir: /storage/sdcard0/Pictures/cmcc-ocr/" + fileName);
-                bitmapSrc.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                fos.flush();
-                fos.close();
-            } catch (FileNotFoundException e) {
-                Log.d(Constant.LOG_TAG, "File not found: " + e.getMessage());
-            } catch (IOException e) {
-                Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
-            }*/
-            /****************************************************************/
 
             /*
                 屏幕大小与拍出来的照片大小不同，测试机屏幕H/W=1280/720，拍出来的照片大小H'/W'=640/480
@@ -354,11 +287,11 @@ public class VideoIdentifyActivity extends Activity{
                 Log.d(Constant.LOG_TAG, "Error accessing file: " + e.getMessage());
             }
 
-            /* Associate the Bitmap to the ImageView */
+            // Show the cropped part of the picture
             identifyResultImageView.setImageBitmap(bitmapDst);
             identifyResultImageView.setVisibility(View.VISIBLE);
 
-            // OCR via api
+            // OCR via TessApi
             TessBaseAPI baseApi = new TessBaseAPI();
             baseApi.setDebug(true);
             baseApi.init(DATA_PATH, lang);
@@ -371,8 +304,10 @@ public class VideoIdentifyActivity extends Activity{
             String keyText = prettyPrint(recognizedText);
             String displayText = "关键值：" + keyText + "\n原始值：" + recognizedText;
 
+            // Show the recognize result
             identifyResultTextView.setText(displayText);
 
+            // Reset take picture button
             startCaptureButton.setEnabled(true);
             startCaptureButton.setTextColor(Color.GREEN);
             startCaptureButton.setText("检测");
@@ -414,7 +349,6 @@ public class VideoIdentifyActivity extends Activity{
         params.setPictureSize(bestPictureSize.width, bestPictureSize.height);*/
 
         mCamera.setParameters(params);
-        //mCamera.setPreviewDisplay(mSurfaceHolder);
 
         mPreview.setCamera(mCamera);
     }
@@ -439,6 +373,14 @@ public class VideoIdentifyActivity extends Activity{
     protected void onDestroy() {
         Log.d(Constant.LOG_TAG, "onDestroy");
         super.onDestroy();
+        // Because the Camera object is a shared resource, it's very
+        // important to release it when the activity is paused.
+        if (mCamera != null) {
+            mPreview.setCamera(null);
+            Log.d(Constant.LOG_TAG, "onPause --> Realease camera");
+            mCamera.release();
+            mCamera = null;
+        }
     }
 
     @Override
@@ -447,6 +389,12 @@ public class VideoIdentifyActivity extends Activity{
         Log.d(Constant.LOG_TAG, "onWindowFocusChanged, checking camera status...");
         if (isSwitchOn) {
             Log.d(Constant.LOG_TAG, "Camera is on, will be released immediately...");
+            if (mCamera != null) {
+                mPreview.setCamera(null);
+                Log.d(Constant.LOG_TAG, "onPause --> Realease camera");
+                mCamera.release();
+                mCamera = null;
+            }
         }
     }
 
@@ -561,36 +509,6 @@ public class VideoIdentifyActivity extends Activity{
             // no camera on this device
             return false;
         }
-    }
-
-    public static Camera.Size determineBestPreviewSize(Camera.Parameters parameters) {
-        List<Camera.Size> sizes = parameters.getSupportedPreviewSizes();
-        return determineBestSize(sizes);
-    }
-
-    public static Camera.Size determineBestPictureSize(Camera.Parameters parameters) {
-        List<Camera.Size> sizes = parameters.getSupportedPictureSizes();
-        return determineBestSize(sizes);
-    }
-
-    protected static Camera.Size determineBestSize(List<Camera.Size> sizes) {
-        Camera.Size bestSize = null;
-        long used = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-        long availableMemory = Runtime.getRuntime().maxMemory() - used;
-        for (Camera.Size currentSize : sizes) {
-            int newArea = currentSize.width * currentSize.height;
-            long neededMemory = newArea * 4 * 4; // newArea * 4 Bytes/pixel * 4 needed copies of the bitmap (for safety :) )
-            boolean isDesiredRatio = (currentSize.width / 4) == (currentSize.height / 3);
-            boolean isBetterSize = (bestSize == null || currentSize.width > bestSize.width);
-            boolean isSafe = neededMemory < availableMemory;
-            if (isDesiredRatio && isBetterSize && isSafe) {
-                bestSize = currentSize;
-            }
-        }
-        if (bestSize == null) {
-            return sizes.get(0);
-        }
-        return bestSize;
     }
 
 }

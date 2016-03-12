@@ -1,7 +1,7 @@
 package com.lencity.cmcc_ocr.utils;
 
 public class Constant {
-    public static final String LOG_TAG = "LOG_TAG";
+    public static String LOG_TAG = "LOG_TAG";
 
     public static float CANVAS_WIDTH = 0;
     public static float CANVAS_HEIGHT = 0;
